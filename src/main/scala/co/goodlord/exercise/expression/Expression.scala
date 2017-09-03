@@ -1,4 +1,6 @@
-package co.goodlord.exercise
+package co.goodlord.exercise.expression
+
+import scopt.Read
 
 sealed trait Expression {
   def value: Int
@@ -25,10 +27,8 @@ object Expression {
 
   def apply(target: Int, operands: Seq[Operand]): Option[Expression] = {
     def go(op: Seq[Operand], result: Option[Expression]): Option[Expression] = result match {
-      case Some(r) if r.value == target =>
-        result
-      case Some(r) if r.value < 0 =>
-        None
+      case Some(r) if r.value == target => result
+      case Some(r) if r.value < 0 => None
       case Some(exp) =>
         op.map { o =>
           val remainder = op.filter(_ != o)
@@ -50,9 +50,27 @@ object Expression {
 }
 
 object Main {
-  import Expression._
-  def main(args: Array[String]): Unit = {
-    println(Expression(42, Seq(2, 3, 5, 6)))
-    println(Expression(128, Seq(1, 2, 3, 4, 5, 6, 7, 8)))
+
+  def main(args: Array[String]): Unit = Config(args).foreach { config =>
+    Expression(config.target, config.operands) match {
+      case Some(result) => println(s"result: $result = ${result.value}")
+      case None => println(s"target value ${config.target} cannot be obtained from operands ${config.operands.mkString(", ")}")
+    }
+  }
+}
+
+case class Config(operands: Seq[Operand] = Seq(), target: Int = -1)
+
+object Config {
+  implicit val operandRead = Read.reads[Operand] { implicitly[Read[Int]].reads(_) }
+
+  def apply(args: Array[String]): Option[Config] = {
+    val parser = new scopt.OptionParser[Config]("Longest Common Subsequence") {
+      opt[Seq[Operand]]("operands").required.action { (ops, c) => c.copy(operands = ops) }
+        .text(s"comma-separated list of operands (e.g '1,2,3,4,5')")
+      opt[Int]("target").required.action { (t, c) => c.copy(target = t) }
+        .text(s"the target value of the expression")
+    }
+    parser.parse(args, Config())
   }
 }
